@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch Vapi assistant: webhook URL, first message, and FinTrust system prompt (via .env)."""
+"""Patch Vapi assistant: webhook URL, first message, and Callbook.ai system prompt (via .env)."""
 
 from __future__ import annotations
 
@@ -44,8 +44,9 @@ def main() -> None:
     body = {
         "server": {"url": server_url},
         "firstMessage": (
-            "Hi, this is Alex from FinTrust. I'm reaching out because we help fintech companies "
-            "automate their lead qualification. Do you have 2 minutes to chat?"
+            "Hi, this is Alex from Callbook.ai. I'm reaching out because we help teams turn "
+            "large outbound call lists into live conversations with CRM-synced outcomes. "
+            "Do you have 2 minutes to chat?"
         ),
         "model": {
             "provider": "openai",
@@ -54,11 +55,17 @@ def main() -> None:
                 {
                     "role": "system",
                     "content": (
-                        "You are Alex, a fintech sales development rep for FinTrust. Your goal is to "
-                        "qualify leads in under 3 minutes. Ask about: their company size, current pain "
-                        "points with lead qualification or collections, budget range, compliance "
-                        "requirements (SOC2, CFPB), and timeline to purchase. Be conversational, "
-                        "confident, and concise. One question at a time. Never say you are an AI."
+                        "You are Alex, a consultative outbound GTM representative for Callbook.ai. "
+                        "Your goal is to qualify prospects in under 3 minutes for high-volume outbound "
+                        "calling workflows where missed contacts, slow follow-up, or manual call-center "
+                        "labor create measurable revenue leakage. Ask about their organization type, "
+                        "call volume, past-due or stale contact lists, CRM or dialer stack, follow-up "
+                        "speed, compliance requirements, and timeline to improve the workflow. Prioritize "
+                        "collections-heavy and CRM-driven teams such as lenders, fintechs, loan servicers, "
+                        "healthcare revenue-cycle teams, education providers, insurance companies, and "
+                        "appointment-based businesses. Be conversational, confident, concise, and ask one "
+                        "question at a time. Do not claim guaranteed compliance or guaranteed revenue "
+                        "outcomes. Never say you are an AI."
                     ),
                 }
             ],

@@ -112,8 +112,8 @@ async def call_end():
     else:
         client = AsyncGroq(api_key=groq_key)
         prompt = (
-            "Write a concise follow-up email for this fintech lead in exactly 3 sentences. "
-            "Be specific, friendly, and include a clear CTA to book a demo. "
+            "Write a concise follow-up email for this Callbook.ai prospect in exactly 3 sentences. "
+            "Be specific, friendly, and include a clear CTA to review their outbound calling workflow. "
             "Return plain text only."
         )
         completion = await client.chat.completions.create(

@@ -7,14 +7,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from groq import AsyncGroq
 
-from routers import agent, graphql_api, redis_state, sse, vapi, whisper
+from routers import agent, graphql_api, leads, redis_state, sse, vapi, whisper
 from routers.agent import LEAD_HASH_KEY, _lead_to_redis_mapping, _redis_hash_to_lead
 from routers.redis_state import sse_queue
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+_ROOT = Path(__file__).resolve().parent
+_FRONTEND_INDEX = _ROOT / "frontend" / "index.html"
+
+load_dotenv(_ROOT / ".env")
 
 
 @asynccontextmanager
@@ -47,6 +50,7 @@ app.include_router(redis_state.router, prefix="/api/redis", tags=["redis"])
 app.include_router(sse.router, prefix="/sse", tags=["sse"])
 app.include_router(graphql_api.router, prefix="/graphql", tags=["graphql"])
 app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
+app.include_router(leads.router, prefix="/leads", tags=["leads"])
 
 
 @app.get("/api/health")
@@ -131,5 +135,12 @@ async def call_end():
     return {"email": email}
 
 
-# Mount the frontend last so API routes take priority.
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+@app.get("/")
+def serve_frontend():
+    """Serve SPA HTML without a catch-all StaticFiles mount (avoids /leads/* etc. returning 404)."""
+    return FileResponse(_FRONTEND_INDEX, media_type="text/html")
+
+
+@app.get("/index.html")
+def serve_frontend_index():
+    return FileResponse(_FRONTEND_INDEX, media_type="text/html")

@@ -41,6 +41,26 @@
   </head>
 
   <body class="min-h-screen pb-16 text-slate-100">
+    <div class="sticky top-0 z-30 border-b border-slate-800/90 bg-[#0f172a]">
+      <div class="mx-auto flex max-w-7xl gap-8 px-4">
+        <button
+          type="button"
+          id="tabBtnDashboard"
+          class="tab-btn py-3.5 text-sm font-semibold text-slate-100 border-b-2 border-[#22c55e]"
+        >
+          📊 Live Dashboard
+        </button>
+        <button
+          type="button"
+          id="tabBtnLeads"
+          class="tab-btn py-3.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200"
+        >
+          🎯 Lead Pipeline
+        </button>
+      </div>
+    </div>
+
+    <div id="panelDashboard">
     <!-- Navbar -->
     <div class="sticky top-0 z-20 border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
@@ -221,10 +241,56 @@
         <pre id="debugLog" class="m-0 whitespace-pre-wrap break-all"></pre>
       </div>
     </div>
+    </div>
+
+    <div id="panelLeads" class="hidden mx-auto max-w-7xl px-4 py-8 pb-28">
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-white">Callbook.ai Lead Pipeline</h1>
+        <p class="mt-1 max-w-2xl text-sm text-slate-400">
+          AI-generated leads scraped and personalized in real time
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <!-- Left: Lead Discovery + thinking feed -->
+        <div class="flex flex-col gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-100">Lead Discovery</h2>
+            <p class="mt-1 text-xs text-slate-500">Streamed trace updates as Apify + Groq run.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <span
+              id="leadCountBadge"
+              class="hidden rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-[#22c55e] ring-1 ring-emerald-500/35"
+            ></span>
+            <button
+              type="button"
+              id="generateLeadsBtn"
+              class="rounded-xl bg-[#22c55e] px-5 py-2.5 text-sm font-semibold text-slate-950 shadow hover:brightness-110 active:brightness-95 disabled:opacity-50"
+            >
+              Find Leads for Callbook
+            </button>
+          </div>
+          <div
+            id="leadThinkingFeed"
+            class="min-h-[200px] max-h-[480px] overflow-y-auto rounded-2xl border border-slate-800/70 bg-slate-950/50 p-3 ring-1 ring-slate-800/50"
+          ></div>
+          <p id="leadError" class="hidden text-sm text-rose-400"></p>
+        </div>
+
+        <!-- Right: lead cards -->
+        <div>
+          <h2 class="mb-3 text-lg font-semibold text-slate-100">Results</h2>
+          <div id="leadCards" class="grid grid-cols-1 gap-5"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- @vapi-ai/web has no vapi.sdk.js on CDN; load via ESM (see https://www.npmjs.com/package/@vapi-ai/web) -->
     <script type="module">
       import Vapi from "https://esm.sh/@vapi-ai/web@2.5.2";
+
+      let leadEventSource = null;
 
       const colors = {
         green: "#22c55e",
@@ -252,6 +318,134 @@
         debugLogOuter: document.getElementById("debugLogOuter"),
         debugLog: document.getElementById("debugLog"),
       };
+
+      const leadEls = {
+        panelDashboard: document.getElementById("panelDashboard"),
+        panelLeads: document.getElementById("panelLeads"),
+        tabBtnDashboard: document.getElementById("tabBtnDashboard"),
+        tabBtnLeads: document.getElementById("tabBtnLeads"),
+        generateLeadsBtn: document.getElementById("generateLeadsBtn"),
+        leadThinkingFeed: document.getElementById("leadThinkingFeed"),
+        leadCards: document.getElementById("leadCards"),
+        leadError: document.getElementById("leadError"),
+        leadCountBadge: document.getElementById("leadCountBadge"),
+      };
+
+      function setActiveTab(which) {
+        const dash = leadEls.panelDashboard;
+        const leadsPanel = leadEls.panelLeads;
+        const bDash = leadEls.tabBtnDashboard;
+        const bLeads = leadEls.tabBtnLeads;
+        if (!dash || !leadsPanel || !bDash || !bLeads) return;
+        if (which === "dashboard") {
+          dash.classList.remove("hidden");
+          leadsPanel.classList.add("hidden");
+          bDash.classList.add("text-slate-100", "border-[#22c55e]");
+          bDash.classList.remove("text-slate-400", "border-transparent");
+          bLeads.classList.remove("text-slate-100", "border-[#22c55e]");
+          bLeads.classList.add("text-slate-400", "border-transparent");
+        } else {
+          leadsPanel.classList.remove("hidden");
+          dash.classList.add("hidden");
+          bLeads.classList.add("text-slate-100", "border-[#22c55e]");
+          bLeads.classList.remove("text-slate-400", "border-transparent");
+          bDash.classList.remove("text-slate-100", "border-[#22c55e]");
+          bDash.classList.add("text-slate-400", "border-transparent");
+        }
+      }
+
+      function appendThinkingLine(message) {
+        const feed = leadEls.leadThinkingFeed;
+        if (!feed) return;
+        const t = new Date().toISOString().slice(11, 23);
+        const line = document.createElement("div");
+        line.className = "border-b border-slate-800/40 py-1.5 text-xs leading-snug text-slate-300";
+        line.textContent = `[${t}] ${message}`;
+        feed.appendChild(line);
+        feed.scrollTop = feed.scrollHeight;
+      }
+
+      function renderStreamLeadCards(leads) {
+        const root = leadEls.leadCards;
+        if (!root) return;
+        root.innerHTML = "";
+        const list = Array.isArray(leads) ? leads : [];
+        for (const L of list) {
+          const card = document.createElement("article");
+          card.className =
+            "rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5 shadow-sm ring-1 ring-slate-800/40";
+
+          const name = document.createElement("div");
+          name.className = "text-lg font-bold text-white";
+          name.textContent = L.company_name || L.title || "Company";
+
+          const link = document.createElement("a");
+          link.href = L.url || "#";
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.className = "mt-2 block text-sm text-[#22c55e] hover:underline break-all";
+          link.textContent = L.url || "";
+
+          const pain = document.createElement("p");
+          pain.className = "mt-3 text-sm leading-relaxed text-amber-400";
+          pain.textContent = L.pain_point || "";
+
+          const emailWrap = document.createElement("div");
+          emailWrap.className = "mt-4";
+
+          const emailBody = document.createElement("div");
+          emailBody.className =
+            "hidden whitespace-pre-wrap rounded-xl bg-slate-950/60 p-3 text-sm text-slate-200 ring-1 ring-slate-800/60";
+          emailBody.textContent = L.outreach_email || "—";
+
+          const btnRow = document.createElement("div");
+          btnRow.className = "mt-2 flex flex-wrap gap-2";
+
+          const viewBtn = document.createElement("button");
+          viewBtn.type = "button";
+          viewBtn.className =
+            "rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600";
+          viewBtn.textContent = "View Email";
+          let expanded = false;
+          viewBtn.addEventListener("click", () => {
+            expanded = !expanded;
+            emailBody.classList.toggle("hidden", !expanded);
+            viewBtn.textContent = expanded ? "Hide Email" : "View Email";
+          });
+
+          const copyBtn = document.createElement("button");
+          copyBtn.type = "button";
+          copyBtn.className =
+            "rounded-lg bg-[#22c55e] px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110";
+          copyBtn.textContent = "Copy Email";
+          copyBtn.addEventListener("click", async () => {
+            const text = L.outreach_email || "";
+            try {
+              await navigator.clipboard.writeText(text);
+              copyBtn.textContent = "Copied!";
+              setTimeout(() => {
+                copyBtn.textContent = "Copy Email";
+              }, 2000);
+            } catch {
+              copyBtn.textContent = "Copy failed";
+              setTimeout(() => {
+                copyBtn.textContent = "Copy Email";
+              }, 2000);
+            }
+          });
+
+          btnRow.appendChild(viewBtn);
+          btnRow.appendChild(copyBtn);
+          emailWrap.appendChild(emailBody);
+          emailWrap.appendChild(btnRow);
+
+          card.appendChild(name);
+          card.appendChild(link);
+          card.appendChild(pain);
+          card.appendChild(emailWrap);
+          root.appendChild(card);
+        }
+      }
 
       function debugSafeJson(obj) {
         try {
@@ -479,6 +673,85 @@
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
+        if (leadEls.tabBtnDashboard) {
+          leadEls.tabBtnDashboard.addEventListener("click", () => setActiveTab("dashboard"));
+        }
+        if (leadEls.tabBtnLeads) {
+          leadEls.tabBtnLeads.addEventListener("click", () => setActiveTab("leads"));
+        }
+        if (leadEls.generateLeadsBtn) {
+          leadEls.generateLeadsBtn.addEventListener("click", () => {
+            leadEls.leadError.classList.add("hidden");
+            leadEls.leadCards.innerHTML = "";
+            leadEls.leadCountBadge.classList.add("hidden");
+            if (leadEls.leadThinkingFeed) leadEls.leadThinkingFeed.innerHTML = "";
+
+            if (leadEventSource) {
+              leadEventSource.close();
+              leadEventSource = null;
+            }
+
+            leadEls.generateLeadsBtn.disabled = true;
+
+            leadEventSource = new EventSource("/leads/stream");
+            leadEventSource.onmessage = (ev) => {
+              let data;
+              try {
+                data = JSON.parse(ev.data);
+              } catch {
+                return;
+              }
+              if (data.type === "step" && data.message) {
+                appendThinkingLine(data.message);
+              }
+              if (data.type === "complete" && Array.isArray(data.leads)) {
+                if (leadEventSource) {
+                  leadEventSource.close();
+                  leadEventSource = null;
+                }
+                renderStreamLeadCards(data.leads);
+                const n = data.leads.length;
+                leadEls.leadCountBadge.textContent = `${n} leads generated`;
+                leadEls.leadCountBadge.classList.remove("hidden");
+                leadEls.generateLeadsBtn.disabled = false;
+              }
+            };
+            leadEventSource.onerror = () => {
+              /* browser may reconnect; leave stream open until complete or POST error */
+            };
+
+            apiFetch("/leads/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: "{}",
+            })
+              .then(async (resp) => {
+                const text = await resp.text();
+                const data = safeJsonParse(text) || {};
+                if (!resp.ok) {
+                  const detail = data?.detail;
+                  const msg = Array.isArray(detail)
+                    ? JSON.stringify(detail)
+                    : String(detail || text.slice(0, 400) || `HTTP ${resp.status}`);
+                  appendThinkingLine(`❌ Error: ${msg}`);
+                  if (leadEventSource) {
+                    leadEventSource.close();
+                    leadEventSource = null;
+                  }
+                  leadEls.generateLeadsBtn.disabled = false;
+                }
+              })
+              .catch((err) => {
+                appendThinkingLine(`❌ Error: ${err?.message || String(err)}`);
+                if (leadEventSource) {
+                  leadEventSource.close();
+                  leadEventSource = null;
+                }
+                leadEls.generateLeadsBtn.disabled = false;
+              });
+          });
+        }
+
         await fetch("/call/reset", { method: "POST" }).catch(() => {});
 
         const VAPI_PUBLIC_KEY = "3ad339c0-9e4c-4a0c-809d-f3248e170e7e";

@@ -17,6 +17,16 @@ STREAM_KEY = "meeting:transcript"
 _conversation_update_last_idx: dict[str, int] = {}
 
 
+def _webhook_log_summary(body: dict) -> str:
+    top = body.get("type") or "?"
+    msg = body.get("message") if isinstance(body.get("message"), dict) else {}
+    inner = (msg.get("type") or "?") if isinstance(msg, dict) else "?"
+    call = body.get("call") if isinstance(body.get("call"), dict) else {}
+    cid = (call.get("id") or "")[:12] if isinstance(call, dict) else ""
+    tail = f" call.id={cid}…" if cid else ""
+    return f"[VAPI] webhook top.type={top} message.type={inner}{tail}"
+
+
 def _conversation_update_key(body: dict) -> str:
     call = body.get("call") or {}
     for candidate in (
@@ -39,7 +49,7 @@ async def vapi_test():
 @router.post("/webhook")
 async def vapi_webhook(request: Request, background_tasks: BackgroundTasks):
     body = await request.json()
-    print(f"[VAPI] webhook raw body: {json.dumps(body, ensure_ascii=False, default=str)}")
+    print(_webhook_log_summary(body))
 
     if body.get("type") == "call-started":
         print("[VAPI] call-started - resetting lead")

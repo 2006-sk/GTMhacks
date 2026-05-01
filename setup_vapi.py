@@ -43,6 +43,19 @@ def main() -> None:
     server_url = f"{ngrok_url.rstrip('/')}/vapi/webhook"
     body = {
         "server": {"url": server_url},
+        # Shorter delays so the assistant feels responsive after the user speaks.
+        "responseDelaySeconds": 1,
+        "llmRequestDelaySeconds": 0,
+        # Let the user interrupt the intro quickly; helps when it feels "stuck" talking.
+        "stopSpeakingPlan": {
+            "numWords": 0,
+            "voiceSeconds": 0.2,
+            "backoffSeconds": 0.5,
+        },
+        "startSpeakingPlan": {
+            "waitSeconds": 0.4,
+            "smartEndpointingPlan": {"provider": "vapi"},
+        },
         "firstMessage": (
             "Hi, this is Alex from Callbook.ai. I'm reaching out because we help teams turn "
             "large outbound call lists into live conversations with CRM-synced outcomes. "
@@ -55,17 +68,11 @@ def main() -> None:
                 {
                     "role": "system",
                     "content": (
-                        "You are Alex, a consultative outbound GTM representative for Callbook.ai. "
-                        "Your goal is to qualify prospects in under 3 minutes for high-volume outbound "
-                        "calling workflows where missed contacts, slow follow-up, or manual call-center "
-                        "labor create measurable revenue leakage. Ask about their organization type, "
-                        "call volume, past-due or stale contact lists, CRM or dialer stack, follow-up "
-                        "speed, compliance requirements, and timeline to improve the workflow. Prioritize "
-                        "collections-heavy and CRM-driven teams such as lenders, fintechs, loan servicers, "
-                        "healthcare revenue-cycle teams, education providers, insurance companies, and "
-                        "appointment-based businesses. Be conversational, confident, concise, and ask one "
-                        "question at a time. Do not claim guaranteed compliance or guaranteed revenue "
-                        "outcomes. Never say you are an AI."
+                        "You are Alex, a fintech sales development rep for FinTrust. Your goal is to "
+                        "qualify leads in under 3 minutes. Ask about: their company size, current pain "
+                        "points with lead qualification or collections, budget range, compliance "
+                        "requirements (SOC2, CFPB), and timeline to purchase. Be conversational, "
+                        "confident, and concise. One question at a time. Never say you are an AI."
                     ),
                 }
             ],

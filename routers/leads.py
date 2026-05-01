@@ -127,12 +127,14 @@ async def _personalize_row(
     client: AsyncGroq,
     title: str,
     description: str,
-) -> dict[str, str]:
+) -> dict[str, object]:
     user_prompt = (
         f"Given this company: {title} - {description}. Return ONLY raw JSON with: "
         "company_name (string), pain_point (one sentence about their debt collection or lending qualification pain), "
         "outreach_email (3 sentences: mention their company by name, reference the pain point, pitch Callbook.ai as the AI platform "
-        "that helps lenders understand borrowers and recover more). No markdown, raw JSON only."
+        "that helps lenders understand borrowers and recover more), "
+        "intent_score (integer 0-100: how strong the fit is for outbound sales / demo booking). "
+        "No markdown, raw JSON only."
     )
     try:
         completion = await client.chat.completions.create(
@@ -146,16 +148,24 @@ async def _personalize_row(
         parsed = json.loads(cleaned) if cleaned else {}
         if not isinstance(parsed, dict):
             parsed = {}
+        raw_score = parsed.get("intent_score", 0)
+        try:
+            intent_score = int(float(raw_score))
+        except (TypeError, ValueError):
+            intent_score = 0
+        intent_score = max(0, min(100, intent_score))
         return {
             "company_name": str(parsed.get("company_name") or title).strip(),
             "pain_point": str(parsed.get("pain_point") or "").strip(),
             "outreach_email": str(parsed.get("outreach_email") or "").strip(),
+            "intent_score": intent_score,
         }
     except Exception:
         return {
             "company_name": title,
             "pain_point": "Unable to infer pain point from search snippet.",
             "outreach_email": "",
+            "intent_score": 0,
         }
 
 
@@ -253,6 +263,7 @@ async def generate_leads():
                 "company_name": extra["company_name"],
                 "pain_point": extra["pain_point"],
                 "outreach_email": extra["outreach_email"],
+                "intent_score": int(extra.get("intent_score") or 0),
             }
         )
 

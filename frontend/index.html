@@ -3,230 +3,236 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Callbook.ai Agent — GTM Dashboard</title>
+    <title>Callbook.ai — Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              slateBg: "#0f172a",
-              accentGreen: "#22c55e",
-            },
-          },
-        },
-      };
-    </script>
     <style>
       html,
       body {
         height: 100%;
+        width: 100%;
+        overflow: hidden;
       }
       body {
         background: #0f172a;
       }
-      /* nicer scrollbar in dark UI */
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.55;
+          transform: scale(1.15);
+        }
+      }
+      .pulse-dot {
+        animation: pulse-dot 1.4s ease-in-out infinite;
+      }
+      .col-scroll {
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
       ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 0;
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.35);
+        background: rgba(51, 65, 85, 0.9);
         border-radius: 999px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(148, 163, 184, 0.5);
       }
     </style>
   </head>
 
-  <body class="min-h-screen pb-16 text-slate-100">
-    <div class="sticky top-0 z-30 border-b border-slate-800/90 bg-[#0f172a]">
-      <div class="mx-auto flex max-w-7xl gap-8 px-4">
-        <button
-          type="button"
-          id="tabBtnDashboard"
-          class="tab-btn py-3.5 text-sm font-semibold text-slate-100 border-b-2 border-[#22c55e]"
-        >
-          📊 Live Dashboard
-        </button>
-        <button
-          type="button"
-          id="tabBtnLeads"
-          class="tab-btn py-3.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200"
-        >
-          🎯 Lead Pipeline
-        </button>
-      </div>
-    </div>
+  <body class="h-full w-full bg-[#0f172a] text-slate-100 antialiased">
+    <div id="toastHost" class="pointer-events-none fixed bottom-4 right-4 z-[200] flex max-w-sm flex-col gap-2"></div>
 
-    <div id="panelDashboard">
-    <!-- Navbar -->
-    <div class="sticky top-0 z-20 border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-slate-800/60 ring-1 ring-slate-700/60 flex items-center justify-center">
-            <div class="h-3 w-3 rounded-full bg-[#22c55e]"></div>
+    <!-- Reserve bottom space for fixed debug strip so column content isn’t hidden under the toggle -->
+    <div class="grid h-[calc(100%-2.75rem)] w-full grid-cols-3 divide-x divide-[#334155]">
+      <!-- COLUMN 1 — Lead Discovery -->
+      <section class="flex min-h-0 flex-col bg-[#1e293b]">
+        <header class="shrink-0 border-b border-[#334155] px-4 py-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h1 class="text-base font-bold text-white">🔍 Lead Discovery</h1>
+            <button
+              type="button"
+              id="generateLeadsBtn"
+              class="rounded-lg bg-[#22c55e] px-3 py-2 text-xs font-semibold text-slate-950 shadow hover:brightness-110 disabled:opacity-50"
+            >
+              Find Leads for Callbook
+            </button>
           </div>
-          <div>
-            <div class="text-lg font-semibold leading-5">Callbook.ai Agent</div>
-            <div class="text-xs text-slate-400">GTM Sales Dashboard</div>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <button
-            id="startBtn"
-            class="rounded-xl bg-[#22c55e] px-4 py-2 text-sm font-semibold text-slate-950 shadow hover:brightness-110 active:brightness-95"
-          >
-            Start Call
-          </button>
-          <button
-            id="endBtn"
-            class="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow hover:brightness-110 active:brightness-95"
-          >
-            End Call
-          </button>
-        </div>
-      </div>
-      <div class="mx-auto max-w-7xl px-4 pb-3">
-        <div id="statusLine" class="text-xs text-slate-400">
-          Connecting to live stream…
-        </div>
-      </div>
-    </div>
-
-    <!-- Main grid -->
-    <div class="mx-auto max-w-7xl px-4 py-5">
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <!-- Panel 1: Live Transcript -->
-        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-100">Live Transcript</h2>
-            <div class="text-xs text-slate-400">SSE</div>
-          </div>
-          <div
-            id="transcript"
-            class="h-[340px] overflow-y-auto rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800/60"
-          >
-            <div class="text-xs text-slate-500">Waiting for transcript…</div>
-          </div>
-        </section>
-
-        <!-- Panel 2: Lead Intelligence -->
-        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-100">Lead Intelligence</h2>
-            <div id="pipelinePill" class="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200 ring-1 ring-slate-700/70">
-              cold
+        </header>
+        <!-- Split: top = live trace, bottom = lead cards (each half scrolls on its own) -->
+        <div class="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden px-3 py-3">
+          <div class="flex min-h-0 flex-1 flex-col gap-1.5">
+            <div class="flex shrink-0 items-center justify-between gap-2">
+              <h2 class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Running</h2>
+              <span class="text-[9px] text-slate-600">Trace · Apify · Groq</span>
             </div>
+            <div
+              id="leadThinkingFeed"
+              class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-[#334155] bg-[#0f172a] p-2.5 text-[11px] leading-relaxed text-slate-300 shadow-inner"
+            ></div>
+            <p id="leadError" class="hidden shrink-0 text-xs text-rose-400"></p>
           </div>
+          <div class="my-2 h-px shrink-0 bg-[#334155]" aria-hidden="true"></div>
+          <div class="flex min-h-0 flex-1 flex-col gap-1.5">
+            <h2 class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Results</h2>
+            <div
+              id="leadCards"
+              class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg border border-[#334155] bg-[#0f172a] p-2.5"
+            ></div>
+          </div>
+        </div>
+      </section>
 
-          <div class="flex items-center gap-5">
-            <div class="relative h-40 w-40">
-              <svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="46"
-                  fill="none"
-                  stroke="rgba(148, 163, 184, 0.18)"
-                  stroke-width="10"
-                ></circle>
-                <circle
-                  id="scoreRing"
-                  cx="60"
-                  cy="60"
-                  r="46"
-                  fill="none"
-                  stroke="#22c55e"
-                  stroke-width="10"
-                  stroke-linecap="round"
-                  stroke-dasharray="289"
-                  stroke-dashoffset="289"
-                ></circle>
-              </svg>
-              <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <div class="text-4xl font-bold tabular-nums" id="scoreNumber">0</div>
-                <div class="text-xs text-slate-400">lead score</div>
-              </div>
-            </div>
-
-            <div class="flex-1">
-              <div class="mb-2 text-xs text-slate-400">Intent</div>
-              <div
-                id="intentBadge"
-                class="inline-flex items-center rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-200 ring-1 ring-slate-700/70"
+      <!-- COLUMN 2 — Live Call -->
+      <section class="flex min-h-0 flex-col bg-[#1e293b]">
+        <header class="shrink-0 border-b border-[#334155] px-4 py-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h1 class="text-base font-bold text-white">📞 Live Call</h1>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                id="startBtn"
+                class="rounded-lg bg-[#22c55e] px-3 py-2 text-xs font-semibold text-slate-950 shadow hover:brightness-110"
               >
-                UNKNOWN
-              </div>
-
-              <div class="mt-4 text-xs text-slate-400">Last action</div>
-              <div id="actionLine" class="mt-1 text-sm font-semibold text-slate-100">none</div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Panel 3: Objections & Insights -->
-        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-100">Objections &amp; Insights</h2>
-            <div class="text-xs text-slate-400">live</div>
-          </div>
-
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <div class="mb-2 text-xs font-semibold text-slate-200">Objections</div>
-              <ul
-                id="objectionsList"
-                class="h-[240px] overflow-y-auto rounded-xl bg-slate-950/40 p-3 text-sm ring-1 ring-slate-800/60"
+                Start Call
+              </button>
+              <button
+                type="button"
+                id="endBtn"
+                class="rounded-lg bg-rose-500 px-3 py-2 text-xs font-semibold text-white shadow hover:brightness-110"
               >
-                <li class="text-slate-500 text-xs">No objections yet.</li>
-              </ul>
+                End Call
+              </button>
             </div>
+          </div>
+          <div id="statusLine" class="text-[11px] text-slate-400">Connecting to live stream…</div>
+        </header>
 
-            <div>
-              <div class="mb-2 text-xs font-semibold text-slate-200">Recommended Pitch</div>
-              <div class="h-[240px] rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800/60">
-                <div id="pitchText" class="whitespace-pre-wrap text-sm text-slate-100">
-                  —
+        <div class="col-scroll flex flex-1 flex-col gap-3 px-3 py-3">
+          <!-- Lead Intelligence (above transcript) -->
+          <div class="shrink-0 rounded-lg border border-[#334155] bg-slate-950/30 p-3">
+            <div class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Lead Intelligence</div>
+            <div class="flex items-center gap-4">
+              <div class="relative h-28 w-28 shrink-0">
+                <svg viewBox="0 0 120 120" class="h-28 w-28 -rotate-90">
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="46"
+                    fill="none"
+                    stroke="rgba(148, 163, 184, 0.15)"
+                    stroke-width="10"
+                  ></circle>
+                  <circle
+                    id="scoreRing"
+                    cx="60"
+                    cy="60"
+                    r="46"
+                    fill="none"
+                    stroke="#22c55e"
+                    stroke-width="10"
+                    stroke-linecap="round"
+                    stroke-dasharray="289"
+                    stroke-dashoffset="289"
+                  ></circle>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <div class="text-2xl font-bold tabular-nums text-white" id="scoreNumber">0</div>
+                  <div class="text-[9px] text-slate-400">score</div>
+                </div>
+              </div>
+              <div class="min-w-0 flex-1 space-y-2">
+                <div
+                  id="intentBadge"
+                  class="inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-semibold text-slate-200 ring-1 ring-slate-600"
+                >
+                  UNKNOWN
+                </div>
+                <div
+                  id="pipelinePill"
+                  class="inline-block rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] text-slate-300 ring-1 ring-slate-600"
+                >
+                  cold
                 </div>
               </div>
             </div>
           </div>
-        </section>
 
-        <!-- Panel 4: Pipeline Actions -->
-        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-100">Pipeline Actions</h2>
-            <div class="text-xs text-slate-400">end of call</div>
-          </div>
-
-          <div class="space-y-3">
-            <div class="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 ring-1 ring-slate-800/60">
-              <div class="text-sm text-slate-200">Demo Booked</div>
-              <div id="demoBooked" class="text-sm font-semibold text-slate-400">⏳</div>
-            </div>
-            <div class="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 ring-1 ring-slate-800/60">
-              <div class="text-sm text-slate-200">Follow-up Sent</div>
-              <div id="followupSent" class="text-sm font-semibold text-slate-400">⏳</div>
-            </div>
-
-            <div>
-              <div class="mb-2 text-xs font-semibold text-slate-200">Generated Follow-up Email</div>
-              <pre
-                id="emailPre"
-                class="h-[230px] overflow-auto rounded-xl bg-slate-950/40 p-3 text-sm text-slate-100 ring-1 ring-slate-800/60 whitespace-pre-wrap"
-              >—</pre>
+          <!-- Live Transcript -->
+          <div class="flex min-h-0 flex-1 flex-col rounded-lg border border-[#334155] bg-slate-950/30 p-2">
+            <div class="mb-1 text-[10px] font-semibold text-slate-500">Live Transcript</div>
+            <div
+              id="transcript"
+              class="min-h-[140px] flex-1 overflow-y-auto rounded-md bg-slate-950/50 p-2 text-sm"
+            >
+              <div class="text-xs text-slate-500">Waiting for transcript…</div>
             </div>
           </div>
-        </section>
-      </div>
+
+          <!-- Objections & pitch -->
+          <div class="shrink-0 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-lg border border-[#334155] bg-slate-950/30 p-2">
+              <div class="mb-1 text-[10px] font-semibold text-slate-400">Objections</div>
+              <ul id="objectionsList" class="max-h-[100px] overflow-y-auto text-xs text-slate-200">
+                <li class="text-slate-500">No objections yet.</li>
+              </ul>
+            </div>
+            <div class="rounded-lg border border-[#334155] bg-slate-950/30 p-2">
+              <div class="mb-1 text-[10px] font-semibold text-slate-400">Recommended Pitch</div>
+              <div id="pitchText" class="max-h-[100px] overflow-y-auto whitespace-pre-wrap text-xs text-slate-100">—</div>
+            </div>
+          </div>
+
+          <!-- Pipeline actions -->
+          <div class="shrink-0 rounded-lg border border-[#334155] bg-slate-950/30 p-3">
+            <div class="mb-2 text-[10px] font-semibold text-slate-500">Pipeline Actions</div>
+            <div class="flex flex-wrap gap-4 text-xs">
+              <div>
+                <span class="text-slate-400">Demo Booked</span>
+                <span id="demoBooked" class="ml-1 font-semibold text-slate-500">⏳</span>
+              </div>
+              <div>
+                <span class="text-slate-400">Follow-up Sent</span>
+                <span id="followupSent" class="ml-1 font-semibold text-slate-500">⏳</span>
+              </div>
+            </div>
+            <div class="mt-2 text-[10px] font-semibold text-slate-400">Generated Follow-up Email</div>
+            <pre
+              id="emailPre"
+              class="mt-1 max-h-[100px] overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-950/60 p-2 text-[11px] text-slate-200 ring-1 ring-slate-800/80"
+            >—</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLUMN 3 — Pipeline -->
+      <section class="flex min-h-0 flex-col bg-[#1e293b]">
+        <header class="shrink-0 border-b border-[#334155] px-4 py-3">
+          <h1 class="text-base font-bold text-white">🚀 Pipeline</h1>
+          <div
+            id="pipelineStatsBar"
+            class="mt-2 rounded-md border border-[#334155] bg-slate-950/40 px-3 py-2 font-mono text-[11px] text-[#22c55e]"
+          >
+            Total: 6 | Hot: 3 | Demos: 1 | Avg: 73
+          </div>
+        </header>
+        <div class="col-scroll flex flex-1 flex-col gap-2 px-3 py-3">
+          <div id="pipelineDynamic" class="flex flex-col gap-2"></div>
+          <div id="pipelineSeed" class="flex flex-col gap-2"></div>
+        </div>
+      </section>
     </div>
 
-    <!-- Collapsible pipeline debug log -->
-    <div id="debugWrap" class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-700 bg-[#0a0f1a] shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
+    <!-- Collapsible debug log (same pattern as earlier dashboard) -->
+    <div
+      id="debugWrap"
+      class="fixed bottom-0 left-0 right-0 z-[150] border-t border-slate-700 bg-[#0a0f1a] shadow-[0_-4px_24px_rgba(0,0,0,0.45)]"
+    >
       <button
         type="button"
         id="debugToggle"
@@ -236,57 +242,12 @@
       </button>
       <div
         id="debugLogOuter"
-        class="hidden max-h-[200px] overflow-y-auto px-2 py-1 font-mono text-[10px] leading-relaxed text-emerald-200/90 bg-black/50"
+        class="hidden max-h-[220px] overflow-y-auto px-2 py-1 font-mono text-[10px] leading-relaxed text-emerald-200/90 bg-black/40"
       >
         <pre id="debugLog" class="m-0 whitespace-pre-wrap break-all"></pre>
       </div>
     </div>
-    </div>
 
-    <div id="panelLeads" class="hidden mx-auto max-w-7xl px-4 py-8 pb-28">
-      <div class="mb-8">
-        <h1 class="text-2xl font-bold tracking-tight text-white">Callbook.ai Lead Pipeline</h1>
-        <p class="mt-1 max-w-2xl text-sm text-slate-400">
-          AI-generated leads scraped and personalized in real time
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-        <!-- Left: Lead Discovery + thinking feed -->
-        <div class="flex flex-col gap-4">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-100">Lead Discovery</h2>
-            <p class="mt-1 text-xs text-slate-500">Streamed trace updates as Apify + Groq run.</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <span
-              id="leadCountBadge"
-              class="hidden rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-[#22c55e] ring-1 ring-emerald-500/35"
-            ></span>
-            <button
-              type="button"
-              id="generateLeadsBtn"
-              class="rounded-xl bg-[#22c55e] px-5 py-2.5 text-sm font-semibold text-slate-950 shadow hover:brightness-110 active:brightness-95 disabled:opacity-50"
-            >
-              Find Leads for Callbook
-            </button>
-          </div>
-          <div
-            id="leadThinkingFeed"
-            class="min-h-[200px] max-h-[480px] overflow-y-auto rounded-2xl border border-slate-800/70 bg-slate-950/50 p-3 ring-1 ring-slate-800/50"
-          ></div>
-          <p id="leadError" class="hidden text-sm text-rose-400"></p>
-        </div>
-
-        <!-- Right: lead cards -->
-        <div>
-          <h2 class="mb-3 text-lg font-semibold text-slate-100">Results</h2>
-          <div id="leadCards" class="grid grid-cols-1 gap-5"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- @vapi-ai/web has no vapi.sdk.js on CDN; load via ESM (see https://www.npmjs.com/package/@vapi-ai/web) -->
     <script type="module">
       import Vapi from "https://esm.sh/@vapi-ai/web@2.5.2";
 
@@ -296,7 +257,22 @@
         green: "#22c55e",
         yellow: "#eab308",
         red: "#ef4444",
-        gray: "#94a3b8",
+      };
+
+      const PIPELINE_SEED = [
+        { company: "Avant LLC", industry: "Debt Collection", contact: "Sarah Chen", title: "VP Sales", score: 87, stage: "demo_ready", fire: true },
+        { company: "LoanPro Software", industry: "Lending", contact: "Mike Torres", title: "CTO", score: 74, stage: "qualified", fire: false },
+        { company: "TrueAccord", industry: "Digital Collections", contact: "Jessica Park", title: "Head of Ops", score: 91, stage: "demo_ready", fire: true },
+        { company: "Finwise Bank", industry: "Consumer Lending", contact: "David Kim", title: "CDO", score: 62, stage: "interested", fire: false },
+        { company: "Radius Global", industry: "Debt Recovery", contact: "Amanda Ross", title: "Dir. Strategy", score: 78, stage: "qualified", fire: true },
+        { company: "Marlette Funding", industry: "Personal Loans", contact: "Chris Nguyen", title: "VP Growth", score: 45, stage: "cold", fire: false },
+      ];
+
+      let pipelineState = {
+        total: 6,
+        hot: 3,
+        demos: 1,
+        sumScores: PIPELINE_SEED.reduce((a, r) => a + r.score, 0),
       };
 
       const els = {
@@ -306,7 +282,6 @@
         scoreNumber: document.getElementById("scoreNumber"),
         intentBadge: document.getElementById("intentBadge"),
         pipelinePill: document.getElementById("pipelinePill"),
-        actionLine: document.getElementById("actionLine"),
         objectionsList: document.getElementById("objectionsList"),
         pitchText: document.getElementById("pitchText"),
         demoBooked: document.getElementById("demoBooked"),
@@ -314,138 +289,17 @@
         emailPre: document.getElementById("emailPre"),
         startBtn: document.getElementById("startBtn"),
         endBtn: document.getElementById("endBtn"),
-        debugToggle: document.getElementById("debugToggle"),
-        debugLogOuter: document.getElementById("debugLogOuter"),
-        debugLog: document.getElementById("debugLog"),
-      };
-
-      const leadEls = {
-        panelDashboard: document.getElementById("panelDashboard"),
-        panelLeads: document.getElementById("panelLeads"),
-        tabBtnDashboard: document.getElementById("tabBtnDashboard"),
-        tabBtnLeads: document.getElementById("tabBtnLeads"),
         generateLeadsBtn: document.getElementById("generateLeadsBtn"),
         leadThinkingFeed: document.getElementById("leadThinkingFeed"),
         leadCards: document.getElementById("leadCards"),
         leadError: document.getElementById("leadError"),
-        leadCountBadge: document.getElementById("leadCountBadge"),
+        pipelineStatsBar: document.getElementById("pipelineStatsBar"),
+        pipelineDynamic: document.getElementById("pipelineDynamic"),
+        pipelineSeed: document.getElementById("pipelineSeed"),
+        debugToggle: document.getElementById("debugToggle"),
+        debugLogOuter: document.getElementById("debugLogOuter"),
+        debugLog: document.getElementById("debugLog"),
       };
-
-      function setActiveTab(which) {
-        const dash = leadEls.panelDashboard;
-        const leadsPanel = leadEls.panelLeads;
-        const bDash = leadEls.tabBtnDashboard;
-        const bLeads = leadEls.tabBtnLeads;
-        if (!dash || !leadsPanel || !bDash || !bLeads) return;
-        if (which === "dashboard") {
-          dash.classList.remove("hidden");
-          leadsPanel.classList.add("hidden");
-          bDash.classList.add("text-slate-100", "border-[#22c55e]");
-          bDash.classList.remove("text-slate-400", "border-transparent");
-          bLeads.classList.remove("text-slate-100", "border-[#22c55e]");
-          bLeads.classList.add("text-slate-400", "border-transparent");
-        } else {
-          leadsPanel.classList.remove("hidden");
-          dash.classList.add("hidden");
-          bLeads.classList.add("text-slate-100", "border-[#22c55e]");
-          bLeads.classList.remove("text-slate-400", "border-transparent");
-          bDash.classList.remove("text-slate-100", "border-[#22c55e]");
-          bDash.classList.add("text-slate-400", "border-transparent");
-        }
-      }
-
-      function appendThinkingLine(message) {
-        const feed = leadEls.leadThinkingFeed;
-        if (!feed) return;
-        const t = new Date().toISOString().slice(11, 23);
-        const line = document.createElement("div");
-        line.className = "border-b border-slate-800/40 py-1.5 text-xs leading-snug text-slate-300";
-        line.textContent = `[${t}] ${message}`;
-        feed.appendChild(line);
-        feed.scrollTop = feed.scrollHeight;
-      }
-
-      function renderStreamLeadCards(leads) {
-        const root = leadEls.leadCards;
-        if (!root) return;
-        root.innerHTML = "";
-        const list = Array.isArray(leads) ? leads : [];
-        for (const L of list) {
-          const card = document.createElement("article");
-          card.className =
-            "rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5 shadow-sm ring-1 ring-slate-800/40";
-
-          const name = document.createElement("div");
-          name.className = "text-lg font-bold text-white";
-          name.textContent = L.company_name || L.title || "Company";
-
-          const link = document.createElement("a");
-          link.href = L.url || "#";
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.className = "mt-2 block text-sm text-[#22c55e] hover:underline break-all";
-          link.textContent = L.url || "";
-
-          const pain = document.createElement("p");
-          pain.className = "mt-3 text-sm leading-relaxed text-amber-400";
-          pain.textContent = L.pain_point || "";
-
-          const emailWrap = document.createElement("div");
-          emailWrap.className = "mt-4";
-
-          const emailBody = document.createElement("div");
-          emailBody.className =
-            "hidden whitespace-pre-wrap rounded-xl bg-slate-950/60 p-3 text-sm text-slate-200 ring-1 ring-slate-800/60";
-          emailBody.textContent = L.outreach_email || "—";
-
-          const btnRow = document.createElement("div");
-          btnRow.className = "mt-2 flex flex-wrap gap-2";
-
-          const viewBtn = document.createElement("button");
-          viewBtn.type = "button";
-          viewBtn.className =
-            "rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600";
-          viewBtn.textContent = "View Email";
-          let expanded = false;
-          viewBtn.addEventListener("click", () => {
-            expanded = !expanded;
-            emailBody.classList.toggle("hidden", !expanded);
-            viewBtn.textContent = expanded ? "Hide Email" : "View Email";
-          });
-
-          const copyBtn = document.createElement("button");
-          copyBtn.type = "button";
-          copyBtn.className =
-            "rounded-lg bg-[#22c55e] px-3 py-1.5 text-xs font-semibold text-slate-950 hover:brightness-110";
-          copyBtn.textContent = "Copy Email";
-          copyBtn.addEventListener("click", async () => {
-            const text = L.outreach_email || "";
-            try {
-              await navigator.clipboard.writeText(text);
-              copyBtn.textContent = "Copied!";
-              setTimeout(() => {
-                copyBtn.textContent = "Copy Email";
-              }, 2000);
-            } catch {
-              copyBtn.textContent = "Copy failed";
-              setTimeout(() => {
-                copyBtn.textContent = "Copy Email";
-              }, 2000);
-            }
-          });
-
-          btnRow.appendChild(viewBtn);
-          btnRow.appendChild(copyBtn);
-          emailWrap.appendChild(emailBody);
-          emailWrap.appendChild(btnRow);
-
-          card.appendChild(name);
-          card.appendChild(link);
-          card.appendChild(pain);
-          card.appendChild(emailWrap);
-          root.appendChild(card);
-        }
-      }
 
       function debugSafeJson(obj) {
         try {
@@ -467,6 +321,290 @@
         }
       }
 
+      function showToast(message) {
+        const host = document.getElementById("toastHost");
+        if (!host) return;
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-auto rounded-lg border border-[#22c55e] bg-[#0f172a] px-4 py-2 text-xs text-slate-100 shadow-lg";
+        el.textContent = message;
+        host.appendChild(el);
+        setTimeout(() => {
+          el.remove();
+        }, 3000);
+      }
+
+      function refreshPipelineStatsBar() {
+        const avg = pipelineState.total ? Math.round(pipelineState.sumScores / pipelineState.total) : 0;
+        els.pipelineStatsBar.textContent = `Total: ${pipelineState.total} | Hot: ${pipelineState.hot} | Demos: ${pipelineState.demos} | Avg: ${avg}`;
+      }
+
+      function scoreBarColor(score) {
+        if (score >= 70) return colors.green;
+        if (score >= 50) return colors.yellow;
+        return colors.red;
+      }
+
+      function buildPipelineCard(opts) {
+        const {
+          company,
+          industry,
+          contact,
+          contactTitle,
+          score,
+          stage,
+          fireEmoji,
+          pulsing,
+          isNew,
+          onAssign,
+          onBook,
+        } = opts;
+
+        const card = document.createElement("article");
+        card.className =
+          "rounded-lg border border-[#334155] bg-slate-950/40 p-3 shadow-sm";
+
+        const top = document.createElement("div");
+        top.className = "flex items-start gap-2";
+        if (pulsing) {
+          const dot = document.createElement("span");
+          dot.className = "pulse-dot mt-1.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[#22c55e]";
+          dot.setAttribute("aria-hidden", "true");
+          top.appendChild(dot);
+        } else {
+          const spacer = document.createElement("span");
+          spacer.className = "mt-1.5 inline-block h-2.5 w-2.5 shrink-0";
+          top.appendChild(spacer);
+        }
+        const head = document.createElement("div");
+        head.className = "min-w-0 flex-1";
+        const titleRow = document.createElement("div");
+        titleRow.className = "flex flex-wrap items-center gap-1.5";
+        const name = document.createElement("span");
+        name.className = "font-bold text-white";
+        name.textContent = company;
+        titleRow.appendChild(name);
+        if (industry) {
+          const tag = document.createElement("span");
+          tag.className = "rounded bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-400";
+          tag.textContent = industry;
+          titleRow.appendChild(tag);
+        }
+        if (isNew) {
+          const nb = document.createElement("span");
+          nb.className = "rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-[#22c55e]";
+          nb.textContent = "🔥 NEW";
+          titleRow.appendChild(nb);
+        }
+        if (fireEmoji) {
+          const f = document.createElement("span");
+          f.className = "text-sm";
+          f.textContent = "🔥";
+          titleRow.appendChild(f);
+        }
+        head.appendChild(titleRow);
+        const who = document.createElement("div");
+        who.className = "mt-0.5 text-[10px] text-slate-500";
+        who.textContent = contact && contactTitle ? `${contact}, ${contactTitle}` : contact || "";
+        head.appendChild(who);
+        top.appendChild(head);
+        card.appendChild(top);
+
+        const barWrap = document.createElement("div");
+        barWrap.className = "mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800";
+        const bar = document.createElement("div");
+        bar.className = "h-full rounded-full transition-all";
+        bar.style.width = `${Math.max(0, Math.min(100, score))}%`;
+        bar.style.backgroundColor = scoreBarColor(score);
+        barWrap.appendChild(bar);
+        card.appendChild(barWrap);
+
+        const meta = document.createElement("div");
+        meta.className = "mt-1 flex flex-wrap items-center justify-between gap-2";
+        const sc = document.createElement("span");
+        sc.className = "text-[10px] font-semibold text-slate-300";
+        sc.textContent = `Score ${score}`;
+        const st = document.createElement("span");
+        st.className = "rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-300 ring-1 ring-slate-600";
+        st.textContent = stage;
+        meta.appendChild(sc);
+        meta.appendChild(st);
+        card.appendChild(meta);
+
+        const btns = document.createElement("div");
+        btns.className = "mt-2 flex flex-wrap gap-2";
+        const b1 = document.createElement("button");
+        b1.type = "button";
+        b1.className =
+          "rounded-md border border-[#334155] bg-slate-900 px-2 py-1 text-[10px] text-slate-200 hover:border-[#22c55e]";
+        b1.textContent = "📧 Assign Rep";
+        b1.addEventListener("click", () => onAssign && onAssign());
+        const b2 = document.createElement("button");
+        b2.type = "button";
+        b2.className =
+          "rounded-md border border-[#334155] bg-slate-900 px-2 py-1 text-[10px] text-slate-200 hover:border-[#22c55e]";
+        b2.textContent = "📅 Book Demo";
+        b2.addEventListener("click", () => onBook && onBook());
+        btns.appendChild(b1);
+        btns.appendChild(b2);
+        card.appendChild(btns);
+
+        return card;
+      }
+
+      function renderPipelineSeeds() {
+        els.pipelineSeed.innerHTML = "";
+        for (const row of PIPELINE_SEED) {
+          els.pipelineSeed.appendChild(
+            buildPipelineCard({
+              company: row.company,
+              industry: row.industry,
+              contact: row.contact,
+              contactTitle: row.title,
+              score: row.score,
+              stage: row.stage,
+              fireEmoji: row.fire,
+              pulsing: row.score >= 70,
+              isNew: false,
+              onAssign: () => showToast(`Assign rep → ${row.company}`),
+              onBook: () => showToast(`Book demo → ${row.company}`),
+            }),
+          );
+        }
+      }
+
+      function prependHotScrapedLeads(leads) {
+        const hot = (Array.isArray(leads) ? leads : []).filter((L) => Number(L.intent_score) >= 70);
+        if (!hot.length) return;
+        for (const L of [...hot].reverse()) {
+          const score = Number(L.intent_score) || 0;
+          const card = buildPipelineCard({
+            company: L.company_name || L.title || "Lead",
+            industry: "Scraped",
+            contact: "",
+            contactTitle: "",
+            score,
+            stage: "new",
+            fireEmoji: true,
+            pulsing: true,
+            isNew: true,
+            onAssign: () => showToast(`Assign rep → ${L.company_name || L.title}`),
+            onBook: () => showToast(`Book demo → ${L.company_name || L.title}`),
+          });
+          const sub = document.createElement("div");
+          sub.className = "mt-2 text-[10px] text-slate-500";
+          const u = document.createElement("a");
+          u.href = L.url || "#";
+          u.target = "_blank";
+          u.rel = "noopener noreferrer";
+          u.className = "break-all text-[#22c55e] hover:underline";
+          u.textContent = L.url || "";
+          sub.appendChild(u);
+          const pain = document.createElement("div");
+          pain.className = "mt-1 text-[10px] text-amber-400";
+          pain.textContent = L.pain_point || "";
+          card.appendChild(sub);
+          card.appendChild(pain);
+          els.pipelineDynamic.prepend(card);
+          pipelineState.total += 1;
+          pipelineState.hot += 1;
+          pipelineState.sumScores += score;
+        }
+        refreshPipelineStatsBar();
+      }
+
+      function appendThinkingLine(message) {
+        const feed = els.leadThinkingFeed;
+        if (!feed) return;
+        const t = new Date().toISOString().slice(11, 23);
+        const line = document.createElement("div");
+        line.className = "border-b border-slate-800/50 py-1 text-[11px] text-slate-300";
+        line.textContent = `[${t}] ${message}`;
+        feed.appendChild(line);
+        feed.scrollTop = feed.scrollHeight;
+      }
+
+      function renderStreamLeadCards(leads) {
+        const root = els.leadCards;
+        if (!root) return;
+        root.innerHTML = "";
+        for (const L of Array.isArray(leads) ? leads : []) {
+          const card = document.createElement("article");
+          card.className = "rounded-lg border border-[#334155] bg-slate-950/50 p-3";
+
+          const name = document.createElement("div");
+          name.className = "text-sm font-bold text-white";
+          name.textContent = L.company_name || L.title || "Company";
+
+          const link = document.createElement("a");
+          link.href = L.url || "#";
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.className = "mt-1 block text-[10px] text-slate-500 hover:text-[#22c55e] break-all";
+          link.textContent = L.url || "";
+
+          const pain = document.createElement("p");
+          pain.className = "mt-2 text-[11px] text-amber-400";
+          pain.textContent = L.pain_point || "";
+
+          const emailWrap = document.createElement("div");
+          emailWrap.className = "mt-2";
+          const emailBody = document.createElement("div");
+          emailBody.className =
+            "hidden max-h-28 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-900 p-2 text-[11px] text-slate-200 ring-1 ring-slate-700";
+          emailBody.textContent = L.outreach_email || "—";
+          const btnRow = document.createElement("div");
+          btnRow.className = "mt-1 flex gap-2";
+          const viewBtn = document.createElement("button");
+          viewBtn.type = "button";
+          viewBtn.className = "rounded bg-slate-700 px-2 py-1 text-[10px] font-semibold text-white hover:bg-slate-600";
+          viewBtn.textContent = "View Email";
+          let expanded = false;
+          viewBtn.addEventListener("click", () => {
+            expanded = !expanded;
+            emailBody.classList.toggle("hidden", !expanded);
+            viewBtn.textContent = expanded ? "Hide Email" : "View Email";
+          });
+          const copyBtn = document.createElement("button");
+          copyBtn.type = "button";
+          copyBtn.className =
+            "rounded bg-[#22c55e] px-2 py-1 text-[10px] font-semibold text-slate-950 hover:brightness-110";
+          copyBtn.textContent = "Copy";
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(L.outreach_email || "");
+              showToast("Email copied");
+            } catch {
+              showToast("Copy failed");
+            }
+          });
+          btnRow.appendChild(viewBtn);
+          btnRow.appendChild(copyBtn);
+          emailWrap.appendChild(emailBody);
+          emailWrap.appendChild(btnRow);
+
+          card.appendChild(name);
+          card.appendChild(link);
+          card.appendChild(pain);
+          card.appendChild(emailWrap);
+          root.appendChild(card);
+        }
+      }
+
+      function safeJsonParse(raw) {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function apiFetch(path, options = {}) {
+        const h = new Headers(options.headers || {});
+        h.set("ngrok-skip-browser-warning", "1");
+        return fetch(path, { ...options, headers: h });
+      }
+
       const ring = {
         r: 46,
         get circumference() {
@@ -481,49 +619,31 @@
         els.statusLine.textContent = msg;
       }
 
-      /** Fetch with ngrok-free tier hint so API calls are less likely to hit the HTML warning page */
-      function apiFetch(path, options = {}) {
-        const h = new Headers(options.headers || {});
-        h.set("ngrok-skip-browser-warning", "1");
-        return fetch(path, { ...options, headers: h });
-      }
-
-      function safeJsonParse(raw) {
-        try {
-          return JSON.parse(raw);
-        } catch {
-          return null;
-        }
-      }
-
       function appendTranscriptLine(speaker, text) {
         const isEmpty = els.transcript.querySelectorAll(".tline").length === 0;
         if (isEmpty) els.transcript.innerHTML = "";
-
         const line = document.createElement("div");
-        line.className = "tline mb-2 text-sm leading-snug";
-
+        line.className = "tline mb-1.5 text-xs leading-snug";
         const sp = document.createElement("span");
-        sp.className = "font-semibold";
-        sp.style.color = colors.green;
+        sp.className = "font-semibold text-[#22c55e]";
         sp.textContent = (speaker || "Speaker") + ": ";
-
         const tx = document.createElement("span");
-        tx.className = "text-slate-100";
+        tx.className = "text-slate-200";
         tx.textContent = text || "";
-
         line.appendChild(sp);
         line.appendChild(tx);
         els.transcript.appendChild(line);
-
         els.transcript.scrollTop = els.transcript.scrollHeight;
       }
 
       function intentToBadge(intentRaw) {
         const intent = String(intentRaw || "unknown").toLowerCase();
-        if (intent === "high") return { label: "HIGH", bg: "rgba(34,197,94,0.18)", ring: "rgba(34,197,94,0.4)", color: colors.green };
-        if (intent === "medium") return { label: "MEDIUM", bg: "rgba(234,179,8,0.18)", ring: "rgba(234,179,8,0.4)", color: colors.yellow };
-        if (intent === "low") return { label: "LOW", bg: "rgba(239,68,68,0.18)", ring: "rgba(239,68,68,0.4)", color: colors.red };
+        if (intent === "high")
+          return { label: "HIGH", bg: "rgba(34,197,94,0.18)", ring: "rgba(34,197,94,0.4)", color: colors.green };
+        if (intent === "medium")
+          return { label: "MEDIUM", bg: "rgba(234,179,8,0.18)", ring: "rgba(234,179,8,0.4)", color: colors.yellow };
+        if (intent === "low")
+          return { label: "LOW", bg: "rgba(239,68,68,0.18)", ring: "rgba(239,68,68,0.4)", color: colors.red };
         return { label: "UNKNOWN", bg: "rgba(148,163,184,0.14)", ring: "rgba(148,163,184,0.3)", color: "#e2e8f0" };
       }
 
@@ -536,8 +656,7 @@
       }
 
       function setPipelineStage(stageRaw) {
-        const stage = String(stageRaw || "cold").toLowerCase();
-        els.pipelinePill.textContent = stage;
+        els.pipelinePill.textContent = String(stageRaw || "cold").toLowerCase();
       }
 
       function animateScoreTo(scoreRaw, ringColor) {
@@ -545,26 +664,21 @@
         ring.target = score;
         els.scoreRing.setAttribute("stroke", ringColor || colors.green);
         if (ring.animId) cancelAnimationFrame(ring.animId);
-
         const start = ring.current;
         const end = ring.target;
         const duration = 650;
         const startTs = performance.now();
-
         function frame(ts) {
           const t = Math.min(1, (ts - startTs) / duration);
           const eased = 1 - Math.pow(1 - t, 3);
           const val = start + (end - start) * eased;
           ring.current = val;
-
           const offset = ring.circumference * (1 - val / 100);
           els.scoreRing.setAttribute("stroke-dasharray", String(ring.circumference));
           els.scoreRing.setAttribute("stroke-dashoffset", String(offset));
           els.scoreNumber.textContent = String(Math.round(val));
-
           if (t < 1) ring.animId = requestAnimationFrame(frame);
         }
-
         ring.animId = requestAnimationFrame(frame);
       }
 
@@ -573,25 +687,17 @@
         els.objectionsList.innerHTML = "";
         if (arr.length === 0) {
           const li = document.createElement("li");
-          li.className = "text-slate-500 text-xs";
+          li.className = "text-slate-500";
           li.textContent = "No objections yet.";
           els.objectionsList.appendChild(li);
           return;
         }
         for (const ob of arr) {
           const li = document.createElement("li");
-          li.className = "mb-2 flex items-start gap-2";
-          const dot = document.createElement("span");
-          dot.className = "mt-2 inline-block h-1.5 w-1.5 rounded-full";
-          dot.style.background = "rgba(226,232,240,0.55)";
-          const txt = document.createElement("span");
-          txt.className = "text-slate-100";
-          txt.textContent = String(ob);
-          li.appendChild(dot);
-          li.appendChild(txt);
+          li.className = "mb-1 flex gap-1 text-slate-200";
+          li.textContent = "• " + String(ob);
           els.objectionsList.appendChild(li);
         }
-        els.objectionsList.scrollTop = els.objectionsList.scrollHeight;
       }
 
       function setPitch(text) {
@@ -601,11 +707,11 @@
       function setCallEndedState({ demo_booked, followup_sent, email }) {
         if (demo_booked) {
           els.demoBooked.textContent = "✅";
-          els.demoBooked.className = "text-sm font-semibold text-emerald-400";
+          els.demoBooked.className = "ml-1 font-semibold text-emerald-400";
         }
         if (followup_sent) {
           els.followupSent.textContent = "✅";
-          els.followupSent.className = "text-sm font-semibold text-emerald-400";
+          els.followupSent.className = "ml-1 font-semibold text-emerald-400";
         }
         if (email !== undefined) {
           els.emailPre.textContent = email && String(email).trim() ? String(email) : "—";
@@ -629,20 +735,17 @@
 
       function connectSSE() {
         const es = new EventSource("/sse/stream");
-        setStatus("Connected. Listening for live events… — " + window.location.origin);
-
+        setStatus("Live stream connected — " + window.location.origin);
         es.onmessage = (ev) => {
           const msg = safeJsonParse(ev.data);
           if (!msg) return;
-
           const t = msg.type ?? msg.action ?? "(no type)";
-          pipelineDebug(`[SSE] type: ${t} data: ${debugSafeJson(msg)}`);
+          pipelineDebug(`[SSE /sse/stream] type: ${t} data: ${debugSafeJson(msg)}`);
 
           if (msg.type === "transcript") {
             appendTranscriptLine(msg.speaker, msg.text);
             return;
           }
-
           if (msg.type === "lead_update") {
             const lead = msg.lead || {};
             pipelineDebug(
@@ -651,7 +754,6 @@
             const b = intentToBadge(lead.intent);
             setIntentBadge(lead.intent);
             setPipelineStage(lead.pipeline_stage);
-            els.actionLine.textContent = String(lead.action || "none");
             animateScoreTo(lead.lead_score, b.color);
             updateObjections(lead.objections);
             setPitch(lead.recommended_pitch);
@@ -660,126 +762,118 @@
             }
             return;
           }
-
           if (msg.type === "call_ended") {
             setCallEndedState({ demo_booked: true, followup_sent: true, email: msg.email });
             return;
           }
         };
-
         es.onerror = () => {
-          setStatus("Disconnected. Retrying SSE connection…");
+          setStatus("SSE disconnected — retrying…");
+          pipelineDebug("[SSE /sse/stream] onerror (reconnecting)");
         };
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
-        if (leadEls.tabBtnDashboard) {
-          leadEls.tabBtnDashboard.addEventListener("click", () => setActiveTab("dashboard"));
-        }
-        if (leadEls.tabBtnLeads) {
-          leadEls.tabBtnLeads.addEventListener("click", () => setActiveTab("leads"));
-        }
-        if (leadEls.generateLeadsBtn) {
-          leadEls.generateLeadsBtn.addEventListener("click", () => {
-            leadEls.leadError.classList.add("hidden");
-            leadEls.leadCards.innerHTML = "";
-            leadEls.leadCountBadge.classList.add("hidden");
-            if (leadEls.leadThinkingFeed) leadEls.leadThinkingFeed.innerHTML = "";
-
-            if (leadEventSource) {
-              leadEventSource.close();
-              leadEventSource = null;
+        let debugVisible = false;
+        if (els.debugToggle && els.debugLogOuter) {
+          els.debugToggle.addEventListener("click", () => {
+            debugVisible = !debugVisible;
+            els.debugLogOuter.classList.toggle("hidden", !debugVisible);
+            els.debugToggle.textContent = debugVisible ? "Hide Debug" : "Show Debug";
+            if (debugVisible && els.debugLogOuter) {
+              els.debugLogOuter.scrollTop = els.debugLogOuter.scrollHeight;
             }
-
-            leadEls.generateLeadsBtn.disabled = true;
-
-            leadEventSource = new EventSource("/leads/stream");
-            leadEventSource.onmessage = (ev) => {
-              let data;
-              try {
-                data = JSON.parse(ev.data);
-              } catch {
-                return;
-              }
-              if (data.type === "step" && data.message) {
-                appendThinkingLine(data.message);
-              }
-              if (data.type === "complete" && Array.isArray(data.leads)) {
-                if (leadEventSource) {
-                  leadEventSource.close();
-                  leadEventSource = null;
-                }
-                renderStreamLeadCards(data.leads);
-                const n = data.leads.length;
-                leadEls.leadCountBadge.textContent = `${n} leads generated`;
-                leadEls.leadCountBadge.classList.remove("hidden");
-                leadEls.generateLeadsBtn.disabled = false;
-              }
-            };
-            leadEventSource.onerror = () => {
-              /* browser may reconnect; leave stream open until complete or POST error */
-            };
-
-            apiFetch("/leads/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: "{}",
-            })
-              .then(async (resp) => {
-                const text = await resp.text();
-                const data = safeJsonParse(text) || {};
-                if (!resp.ok) {
-                  const detail = data?.detail;
-                  const msg = Array.isArray(detail)
-                    ? JSON.stringify(detail)
-                    : String(detail || text.slice(0, 400) || `HTTP ${resp.status}`);
-                  appendThinkingLine(`❌ Error: ${msg}`);
-                  if (leadEventSource) {
-                    leadEventSource.close();
-                    leadEventSource = null;
-                  }
-                  leadEls.generateLeadsBtn.disabled = false;
-                }
-              })
-              .catch((err) => {
-                appendThinkingLine(`❌ Error: ${err?.message || String(err)}`);
-                if (leadEventSource) {
-                  leadEventSource.close();
-                  leadEventSource = null;
-                }
-                leadEls.generateLeadsBtn.disabled = false;
-              });
           });
         }
+
+        renderPipelineSeeds();
+        refreshPipelineStatsBar();
+
+        els.generateLeadsBtn.addEventListener("click", () => {
+          els.leadError.classList.add("hidden");
+          els.leadCards.innerHTML = "";
+          els.leadThinkingFeed.innerHTML = "";
+          if (leadEventSource) {
+            leadEventSource.close();
+            leadEventSource = null;
+          }
+          els.generateLeadsBtn.disabled = true;
+
+          leadEventSource = new EventSource("/leads/stream");
+          leadEventSource.onmessage = (ev) => {
+            let data;
+            try {
+              data = JSON.parse(ev.data);
+            } catch {
+              return;
+            }
+            if (data.type === "complete" && Array.isArray(data.leads)) {
+              pipelineDebug(`[LEADS SSE /leads/stream] complete — ${data.leads.length} leads`);
+            } else {
+              pipelineDebug(`[LEADS SSE /leads/stream] ${debugSafeJson(data)}`);
+            }
+            if (data.type === "step" && data.message) appendThinkingLine(data.message);
+            if (data.type === "complete" && Array.isArray(data.leads)) {
+              if (leadEventSource) {
+                leadEventSource.close();
+                leadEventSource = null;
+              }
+              renderStreamLeadCards(data.leads);
+              prependHotScrapedLeads(data.leads);
+              els.generateLeadsBtn.disabled = false;
+            }
+          };
+
+          apiFetch("/leads/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          })
+            .then(async (resp) => {
+              const text = await resp.text();
+              const data = safeJsonParse(text) || {};
+              if (!resp.ok) {
+                const detail = data?.detail;
+                const msg = Array.isArray(detail)
+                  ? JSON.stringify(detail)
+                  : String(detail || text.slice(0, 400) || `HTTP ${resp.status}`);
+                appendThinkingLine(`❌ Error: ${msg}`);
+                if (leadEventSource) {
+                  leadEventSource.close();
+                  leadEventSource = null;
+                }
+                els.generateLeadsBtn.disabled = false;
+              }
+            })
+            .catch((err) => {
+              appendThinkingLine(`❌ Error: ${err?.message || String(err)}`);
+              if (leadEventSource) {
+                leadEventSource.close();
+                leadEventSource = null;
+              }
+              els.generateLeadsBtn.disabled = false;
+            });
+        });
 
         await fetch("/call/reset", { method: "POST" }).catch(() => {});
 
         const VAPI_PUBLIC_KEY = "3ad339c0-9e4c-4a0c-809d-f3248e170e7e";
         const VAPI_ASSISTANT_ID = "791be032-20cc-418c-aa77-fd3e3c7e1bce";
 
-        let debugVisible = false;
-        els.debugToggle.addEventListener("click", () => {
-          debugVisible = !debugVisible;
-          els.debugLogOuter.classList.toggle("hidden", !debugVisible);
-          els.debugToggle.textContent = debugVisible ? "Hide Debug" : "Show Debug";
-          if (debugVisible) {
-            els.debugLogOuter.scrollTop = els.debugLogOuter.scrollHeight;
-          }
-        });
-
         let vapi = null;
         try {
           vapi = new Vapi(VAPI_PUBLIC_KEY);
-
           vapi.on("message", (msg) => {
-            console.log("[VAPI message]", msg);
             pipelineDebug(`[VAPI MSG] ${debugSafeJson(msg)}`);
-
+            if (msg.type === "transcript" && msg.transcriptType === "partial" && (msg.role || "").toLowerCase() === "user") {
+              const tx = (msg.transcript || "").slice(0, 160);
+              if (tx) pipelineDebug(`[VAPI listening] user partial: ${tx}${(msg.transcript || "").length > 160 ? "…" : ""}`);
+            }
             if (msg.type === "transcript" && msg.transcriptType === "final") {
               const sp = msg.role ?? "?";
               const tx = msg.transcript ?? "";
-              pipelineDebug(`[TRANSCRIPT FINAL] ${sp}: ${tx}`);
-              pipelineDebug(`[WEBHOOK SENT] ${sp}: ${tx}`);
+              pipelineDebug(`[TRANSCRIPT FINAL] ${sp}: ${tx.slice(0, 200)}${tx.length > 200 ? "…" : ""}`);
+              pipelineDebug(`[WEBHOOK POST] /vapi/webhook speaker=${sp}`);
               fetch("/vapi/webhook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -789,30 +883,41 @@
                   pipelineDebug(`[WEBHOOK RESPONSE] ${r.status}`);
                   if (!r.ok) {
                     const errText = await r.text().catch(() => "");
-                    pipelineDebug(`[WEBHOOK RESPONSE] body: ${errText.slice(0, 500)}`);
+                    pipelineDebug(`[WEBHOOK RESPONSE body] ${errText.slice(0, 500)}`);
                   }
                 })
                 .catch((err) => {
-                  pipelineDebug(`[WEBHOOK RESPONSE] error: ${err?.message || String(err)}`);
+                  pipelineDebug(`[WEBHOOK ERROR] ${err?.message || String(err)}`);
                   console.error("webhook", err);
                 });
             }
           });
-
-          vapi.on("call-started", () => {
+          const onCallLive = () => {
             els.startBtn.textContent = "🔴 Live";
             els.startBtn.disabled = true;
-          });
-
-          vapi.on("call-ended", () => {
+            setStatus("Connected — speak after the intro; debug shows partial transcripts if the mic is heard.");
+          };
+          const onCallStop = () => {
             els.startBtn.textContent = "Start Call";
             els.startBtn.disabled = false;
+            setStatus("Call ended.");
+          };
+          // SDK uses call-start / call-end; keep call-started / call-ended for compatibility.
+          vapi.on("call-start", onCallLive);
+          vapi.on("call-started", onCallLive);
+          vapi.on("speech-start", () => setStatus("Assistant speaking…"));
+          vapi.on("speech-end", () => setStatus("Your turn — speak clearly toward the mic."));
+          vapi.on("call-end", onCallStop);
+          vapi.on("call-ended", onCallStop);
+          vapi.on("error", (e) => {
+            const detail = e?.message || debugSafeJson(e) || String(e);
+            pipelineDebug(`[VAPI ERROR] ${detail}`);
+            setStatus("Vapi error — see debug / console.");
+            console.error(e);
           });
-
-          vapi.on("error", (e) => console.error(e));
         } catch (e) {
           console.error("Vapi init failed:", e);
-          setStatus("Vapi SDK failed to initialize — check console");
+          setStatus("Vapi failed to init — check console");
         }
 
         connectSSE();
@@ -824,12 +929,23 @@
             setStatus("Vapi not initialized");
             return;
           }
+          if (!window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+            setStatus("Microphone requires HTTPS (or open via localhost).");
+            return;
+          }
+          try {
+            setStatus("Requesting microphone…");
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach((t) => t.stop());
+          } catch (e) {
+            setStatus("Microphone blocked or unavailable: " + (e?.message || String(e)));
+            return;
+          }
           try {
             await vapi.start(VAPI_ASSISTANT_ID);
-            setStatus("Starting call…");
+            setStatus("Starting Vapi session…");
           } catch (e) {
-            console.error(e);
-            setStatus("Start Call failed: " + (e?.message || String(e)));
+            setStatus("Vapi start failed: " + (e?.message || String(e)));
           }
         });
 
@@ -846,9 +962,9 @@
             }
             const resp = await postJson("/call/end");
             setCallEndedState({ demo_booked: true, followup_sent: true, email: resp.email });
-            setStatus("Call ended. Follow-up email generated.");
+            setStatus("Call ended.");
           } catch (e) {
-            setStatus("End Call failed: " + (e?.message || "Unknown error"));
+            setStatus("End failed: " + (e?.message || "Unknown"));
           } finally {
             setTimeout(() => {
               els.endBtn.disabled = false;

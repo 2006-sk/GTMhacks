@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FinTrust Agent — GTM Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              slateBg: "#0f172a",
+              accentGreen: "#22c55e",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: #0f172a;
+      }
+      /* nicer scrollbar in dark UI */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.35);
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.5);
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen pb-16 text-slate-100">
+    <!-- Navbar -->
+    <div class="sticky top-0 z-20 border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-slate-800/60 ring-1 ring-slate-700/60 flex items-center justify-center">
+            <div class="h-3 w-3 rounded-full bg-[#22c55e]"></div>
+          </div>
+          <div>
+            <div class="text-lg font-semibold leading-5">FinTrust Agent</div>
+            <div class="text-xs text-slate-400">GTM Sales Dashboard</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            id="startBtn"
+            class="rounded-xl bg-[#22c55e] px-4 py-2 text-sm font-semibold text-slate-950 shadow hover:brightness-110 active:brightness-95"
+          >
+            Start Call
+          </button>
+          <button
+            id="endBtn"
+            class="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow hover:brightness-110 active:brightness-95"
+          >
+            End Call
+          </button>
+        </div>
+      </div>
+      <div class="mx-auto max-w-7xl px-4 pb-3">
+        <div id="statusLine" class="text-xs text-slate-400">
+          Connecting to live stream…
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="mx-auto max-w-7xl px-4 py-5">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <!-- Panel 1: Live Transcript -->
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-100">Live Transcript</h2>
+            <div class="text-xs text-slate-400">SSE</div>
+          </div>
+          <div
+            id="transcript"
+            class="h-[340px] overflow-y-auto rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800/60"
+          >
+            <div class="text-xs text-slate-500">Waiting for transcript…</div>
+          </div>
+        </section>
+
+        <!-- Panel 2: Lead Intelligence -->
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-100">Lead Intelligence</h2>
+            <div id="pipelinePill" class="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200 ring-1 ring-slate-700/70">
+              cold
+            </div>
+          </div>
+
+          <div class="flex items-center gap-5">
+            <div class="relative h-40 w-40">
+              <svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="rgba(148, 163, 184, 0.18)"
+                  stroke-width="10"
+                ></circle>
+                <circle
+                  id="scoreRing"
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="#22c55e"
+                  stroke-width="10"
+                  stroke-linecap="round"
+                  stroke-dasharray="289"
+                  stroke-dashoffset="289"
+                ></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <div class="text-4xl font-bold tabular-nums" id="scoreNumber">0</div>
+                <div class="text-xs text-slate-400">lead score</div>
+              </div>
+            </div>
+
+            <div class="flex-1">
+              <div class="mb-2 text-xs text-slate-400">Intent</div>
+              <div
+                id="intentBadge"
+                class="inline-flex items-center rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-200 ring-1 ring-slate-700/70"
+              >
+                UNKNOWN
+              </div>
+
+              <div class="mt-4 text-xs text-slate-400">Last action</div>
+              <div id="actionLine" class="mt-1 text-sm font-semibold text-slate-100">none</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Panel 3: Objections & Insights -->
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-100">Objections &amp; Insights</h2>
+            <div class="text-xs text-slate-400">live</div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <div class="mb-2 text-xs font-semibold text-slate-200">Objections</div>
+              <ul
+                id="objectionsList"
+                class="h-[240px] overflow-y-auto rounded-xl bg-slate-950/40 p-3 text-sm ring-1 ring-slate-800/60"
+              >
+                <li class="text-slate-500 text-xs">No objections yet.</li>
+              </ul>
+            </div>
+
+            <div>
+              <div class="mb-2 text-xs font-semibold text-slate-200">Recommended Pitch</div>
+              <div class="h-[240px] rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800/60">
+                <div id="pitchText" class="whitespace-pre-wrap text-sm text-slate-100">
+                  —
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Panel 4: Pipeline Actions -->
+        <section class="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-100">Pipeline Actions</h2>
+            <div class="text-xs text-slate-400">end of call</div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 ring-1 ring-slate-800/60">
+              <div class="text-sm text-slate-200">Demo Booked</div>
+              <div id="demoBooked" class="text-sm font-semibold text-slate-400">⏳</div>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 ring-1 ring-slate-800/60">
+              <div class="text-sm text-slate-200">Follow-up Sent</div>
+              <div id="followupSent" class="text-sm font-semibold text-slate-400">⏳</div>
+            </div>
+
+            <div>
+              <div class="mb-2 text-xs font-semibold text-slate-200">Generated Follow-up Email</div>
+              <pre
+                id="emailPre"
+                class="h-[230px] overflow-auto rounded-xl bg-slate-950/40 p-3 text-sm text-slate-100 ring-1 ring-slate-800/60 whitespace-pre-wrap"
+              >—</pre>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Collapsible pipeline debug log -->
+    <div id="debugWrap" class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-700 bg-[#0a0f1a] shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
+      <button
+        type="button"
+        id="debugToggle"
+        class="w-full px-3 py-2 text-left text-xs font-medium text-slate-300 hover:bg-slate-800/80 border-b border-slate-800"
+      >
+        Show Debug
+      </button>
+      <div
+        id="debugLogOuter"
+        class="hidden max-h-[200px] overflow-y-auto px-2 py-1 font-mono text-[10px] leading-relaxed text-emerald-200/90 bg-black/50"
+      >
+        <pre id="debugLog" class="m-0 whitespace-pre-wrap break-all"></pre>
+      </div>
+    </div>
+
+    <!-- @vapi-ai/web has no vapi.sdk.js on CDN; load via ESM (see https://www.npmjs.com/package/@vapi-ai/web) -->
+    <script type="module">
+      import Vapi from "https://esm.sh/@vapi-ai/web@2.5.2";
+
+      const colors = {
+        green: "#22c55e",
+        yellow: "#eab308",
+        red: "#ef4444",
+        gray: "#94a3b8",
+      };
+
+      const els = {
+        statusLine: document.getElementById("statusLine"),
+        transcript: document.getElementById("transcript"),
+        scoreRing: document.getElementById("scoreRing"),
+        scoreNumber: document.getElementById("scoreNumber"),
+        intentBadge: document.getElementById("intentBadge"),
+        pipelinePill: document.getElementById("pipelinePill"),
+        actionLine: document.getElementById("actionLine"),
+        objectionsList: document.getElementById("objectionsList"),
+        pitchText: document.getElementById("pitchText"),
+        demoBooked: document.getElementById("demoBooked"),
+        followupSent: document.getElementById("followupSent"),
+        emailPre: document.getElementById("emailPre"),
+        startBtn: document.getElementById("startBtn"),
+        endBtn: document.getElementById("endBtn"),
+        debugToggle: document.getElementById("debugToggle"),
+        debugLogOuter: document.getElementById("debugLogOuter"),
+        debugLog: document.getElementById("debugLog"),
+      };
+
+      function debugSafeJson(obj) {
+        try {
+          return JSON.stringify(obj);
+        } catch {
+          return String(obj);
+        }
+      }
+
+      function pipelineDebug(line) {
+        console.log(line);
+        const pre = els.debugLog;
+        if (!pre) return;
+        const t = new Date().toISOString().slice(11, 23);
+        pre.textContent += `[${t}] ${line}\n`;
+        const outer = els.debugLogOuter;
+        if (outer && !outer.classList.contains("hidden")) {
+          outer.scrollTop = outer.scrollHeight;
+        }
+      }
+
+      const ring = {
+        r: 46,
+        get circumference() {
+          return 2 * Math.PI * this.r;
+        },
+        current: 0,
+        target: 0,
+        animId: null,
+      };
+
+      function setStatus(msg) {
+        els.statusLine.textContent = msg;
+      }
+
+      /** Fetch with ngrok-free tier hint so API calls are less likely to hit the HTML warning page */
+      function apiFetch(path, options = {}) {
+        const h = new Headers(options.headers || {});
+        h.set("ngrok-skip-browser-warning", "1");
+        return fetch(path, { ...options, headers: h });
+      }
+
+      function safeJsonParse(raw) {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function appendTranscriptLine(speaker, text) {
+        const isEmpty = els.transcript.querySelectorAll(".tline").length === 0;
+        if (isEmpty) els.transcript.innerHTML = "";
+
+        const line = document.createElement("div");
+        line.className = "tline mb-2 text-sm leading-snug";
+
+        const sp = document.createElement("span");
+        sp.className = "font-semibold";
+        sp.style.color = colors.green;
+        sp.textContent = (speaker || "Speaker") + ": ";
+
+        const tx = document.createElement("span");
+        tx.className = "text-slate-100";
+        tx.textContent = text || "";
+
+        line.appendChild(sp);
+        line.appendChild(tx);
+        els.transcript.appendChild(line);
+
+        els.transcript.scrollTop = els.transcript.scrollHeight;
+      }
+
+      function intentToBadge(intentRaw) {
+        const intent = String(intentRaw || "unknown").toLowerCase();
+        if (intent === "high") return { label: "HIGH", bg: "rgba(34,197,94,0.18)", ring: "rgba(34,197,94,0.4)", color: colors.green };
+        if (intent === "medium") return { label: "MEDIUM", bg: "rgba(234,179,8,0.18)", ring: "rgba(234,179,8,0.4)", color: colors.yellow };
+        if (intent === "low") return { label: "LOW", bg: "rgba(239,68,68,0.18)", ring: "rgba(239,68,68,0.4)", color: colors.red };
+        return { label: "UNKNOWN", bg: "rgba(148,163,184,0.14)", ring: "rgba(148,163,184,0.3)", color: "#e2e8f0" };
+      }
+
+      function setIntentBadge(intent) {
+        const b = intentToBadge(intent);
+        els.intentBadge.textContent = b.label;
+        els.intentBadge.style.background = b.bg;
+        els.intentBadge.style.border = "1px solid " + b.ring;
+        els.intentBadge.style.color = b.color;
+      }
+
+      function setPipelineStage(stageRaw) {
+        const stage = String(stageRaw || "cold").toLowerCase();
+        els.pipelinePill.textContent = stage;
+      }
+
+      function animateScoreTo(scoreRaw, ringColor) {
+        const score = Math.max(0, Math.min(100, Number(scoreRaw || 0)));
+        ring.target = score;
+        els.scoreRing.setAttribute("stroke", ringColor || colors.green);
+        if (ring.animId) cancelAnimationFrame(ring.animId);
+
+        const start = ring.current;
+        const end = ring.target;
+        const duration = 650;
+        const startTs = performance.now();
+
+        function frame(ts) {
+          const t = Math.min(1, (ts - startTs) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          const val = start + (end - start) * eased;
+          ring.current = val;
+
+          const offset = ring.circumference * (1 - val / 100);
+          els.scoreRing.setAttribute("stroke-dasharray", String(ring.circumference));
+          els.scoreRing.setAttribute("stroke-dashoffset", String(offset));
+          els.scoreNumber.textContent = String(Math.round(val));
+
+          if (t < 1) ring.animId = requestAnimationFrame(frame);
+        }
+
+        ring.animId = requestAnimationFrame(frame);
+      }
+
+      function updateObjections(objections) {
+        const arr = Array.isArray(objections) ? objections : [];
+        els.objectionsList.innerHTML = "";
+        if (arr.length === 0) {
+          const li = document.createElement("li");
+          li.className = "text-slate-500 text-xs";
+          li.textContent = "No objections yet.";
+          els.objectionsList.appendChild(li);
+          return;
+        }
+        for (const ob of arr) {
+          const li = document.createElement("li");
+          li.className = "mb-2 flex items-start gap-2";
+          const dot = document.createElement("span");
+          dot.className = "mt-2 inline-block h-1.5 w-1.5 rounded-full";
+          dot.style.background = "rgba(226,232,240,0.55)";
+          const txt = document.createElement("span");
+          txt.className = "text-slate-100";
+          txt.textContent = String(ob);
+          li.appendChild(dot);
+          li.appendChild(txt);
+          els.objectionsList.appendChild(li);
+        }
+        els.objectionsList.scrollTop = els.objectionsList.scrollHeight;
+      }
+
+      function setPitch(text) {
+        els.pitchText.textContent = text && String(text).trim() ? String(text) : "—";
+      }
+
+      function setCallEndedState({ demo_booked, followup_sent, email }) {
+        if (demo_booked) {
+          els.demoBooked.textContent = "✅";
+          els.demoBooked.className = "text-sm font-semibold text-emerald-400";
+        }
+        if (followup_sent) {
+          els.followupSent.textContent = "✅";
+          els.followupSent.className = "text-sm font-semibold text-emerald-400";
+        }
+        if (email !== undefined) {
+          els.emailPre.textContent = email && String(email).trim() ? String(email) : "—";
+        }
+      }
+
+      async function postJson(path) {
+        const resp = await apiFetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const text = await resp.text();
+        const data = safeJsonParse(text) || { raw: text };
+        if (!resp.ok) {
+          const msg = data?.detail ? String(data.detail) : `HTTP ${resp.status}`;
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      function connectSSE() {
+        const es = new EventSource("/sse/stream");
+        setStatus("Connected. Listening for live events… — " + window.location.origin);
+
+        es.onmessage = (ev) => {
+          const msg = safeJsonParse(ev.data);
+          if (!msg) return;
+
+          const t = msg.type ?? msg.action ?? "(no type)";
+          pipelineDebug(`[SSE] type: ${t} data: ${debugSafeJson(msg)}`);
+
+          if (msg.type === "transcript") {
+            appendTranscriptLine(msg.speaker, msg.text);
+            return;
+          }
+
+          if (msg.type === "lead_update") {
+            const lead = msg.lead || {};
+            pipelineDebug(
+              `[LEAD UPDATE] score: ${lead.lead_score} intent: ${lead.intent} stage: ${lead.pipeline_stage}`,
+            );
+            const b = intentToBadge(lead.intent);
+            setIntentBadge(lead.intent);
+            setPipelineStage(lead.pipeline_stage);
+            els.actionLine.textContent = String(lead.action || "none");
+            animateScoreTo(lead.lead_score, b.color);
+            updateObjections(lead.objections);
+            setPitch(lead.recommended_pitch);
+            if (lead.demo_booked || lead.followup_sent) {
+              setCallEndedState({ demo_booked: !!lead.demo_booked, followup_sent: !!lead.followup_sent });
+            }
+            return;
+          }
+
+          if (msg.type === "call_ended") {
+            setCallEndedState({ demo_booked: true, followup_sent: true, email: msg.email });
+            return;
+          }
+        };
+
+        es.onerror = () => {
+          setStatus("Disconnected. Retrying SSE connection…");
+        };
+      }
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await fetch("/call/reset", { method: "POST" }).catch(() => {});
+
+        const VAPI_PUBLIC_KEY = "3ad339c0-9e4c-4a0c-809d-f3248e170e7e";
+        const VAPI_ASSISTANT_ID = "791be032-20cc-418c-aa77-fd3e3c7e1bce";
+
+        let debugVisible = false;
+        els.debugToggle.addEventListener("click", () => {
+          debugVisible = !debugVisible;
+          els.debugLogOuter.classList.toggle("hidden", !debugVisible);
+          els.debugToggle.textContent = debugVisible ? "Hide Debug" : "Show Debug";
+          if (debugVisible) {
+            els.debugLogOuter.scrollTop = els.debugLogOuter.scrollHeight;
+          }
+        });
+
+        let vapi = null;
+        try {
+          vapi = new Vapi(VAPI_PUBLIC_KEY);
+
+          vapi.on("message", (msg) => {
+            console.log("[VAPI message]", msg);
+            pipelineDebug(`[VAPI MSG] ${debugSafeJson(msg)}`);
+
+            if (msg.type === "transcript" && msg.transcriptType === "final") {
+              const sp = msg.role ?? "?";
+              const tx = msg.transcript ?? "";
+              pipelineDebug(`[TRANSCRIPT FINAL] ${sp}: ${tx}`);
+              pipelineDebug(`[WEBHOOK SENT] ${sp}: ${tx}`);
+              fetch("/vapi/webhook", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ speaker: sp, text: tx }),
+              })
+                .then(async (r) => {
+                  pipelineDebug(`[WEBHOOK RESPONSE] ${r.status}`);
+                  if (!r.ok) {
+                    const errText = await r.text().catch(() => "");
+                    pipelineDebug(`[WEBHOOK RESPONSE] body: ${errText.slice(0, 500)}`);
+                  }
+                })
+                .catch((err) => {
+                  pipelineDebug(`[WEBHOOK RESPONSE] error: ${err?.message || String(err)}`);
+                  console.error("webhook", err);
+                });
+            }
+          });
+
+          vapi.on("call-started", () => {
+            els.startBtn.textContent = "🔴 Live";
+            els.startBtn.disabled = true;
+          });
+
+          vapi.on("call-ended", () => {
+            els.startBtn.textContent = "Start Call";
+            els.startBtn.disabled = false;
+          });
+
+          vapi.on("error", (e) => console.error(e));
+        } catch (e) {
+          console.error("Vapi init failed:", e);
+          setStatus("Vapi SDK failed to initialize — check console");
+        }
+
+        connectSSE();
+        els.scoreRing.setAttribute("stroke-dasharray", String(ring.circumference));
+        els.scoreRing.setAttribute("stroke-dashoffset", String(ring.circumference));
+
+        els.startBtn.addEventListener("click", async () => {
+          if (!vapi) {
+            setStatus("Vapi not initialized");
+            return;
+          }
+          try {
+            await vapi.start(VAPI_ASSISTANT_ID);
+            setStatus("Starting call…");
+          } catch (e) {
+            console.error(e);
+            setStatus("Start Call failed: " + (e?.message || String(e)));
+          }
+        });
+
+        els.endBtn.addEventListener("click", async () => {
+          els.endBtn.disabled = true;
+          els.endBtn.classList.add("opacity-70");
+          try {
+            if (vapi) {
+              try {
+                vapi.stop();
+              } catch (e) {
+                console.error(e);
+              }
+            }
+            const resp = await postJson("/call/end");
+            setCallEndedState({ demo_booked: true, followup_sent: true, email: resp.email });
+            setStatus("Call ended. Follow-up email generated.");
+          } catch (e) {
+            setStatus("End Call failed: " + (e?.message || "Unknown error"));
+          } finally {
+            setTimeout(() => {
+              els.endBtn.disabled = false;
+              els.endBtn.classList.remove("opacity-70");
+            }, 500);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

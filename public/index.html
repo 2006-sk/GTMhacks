@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MeetingMind OS</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      body {
+        max-width: 52rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      a {
+        color: #2563eb;
+      }
+      code {
+        background: #e2e8f0;
+        padding: 0.15rem 0.35rem;
+        border-radius: 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MeetingMind OS</h1>
+    <p>Vapi routes under <code>/vapi/*</code>; other API under <code>/api/*</code>.</p>
+    <ul>
+      <li><a href="/api/health">/api/health</a></li>
+      <li><a href="/vapi/test">/vapi/test</a></li>
+      <li><a href="/vapi/config-check">/vapi/config-check</a></li>
+      <li><a href="/api/agent/status">/api/agent/status</a></li>
+      <li><a href="/api/redis/ping">/api/redis/ping</a></li>
+      <li><a href="/ghost/posts">/ghost/posts</a></li>
+    </ul>
+  </body>
+</html>
